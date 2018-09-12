@@ -5,6 +5,7 @@
  */
 package javaapplication1;
 
+import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.Random;
 
@@ -13,36 +14,44 @@ import java.util.Random;
  * @author Valentino
  */
 public class SimulazioneStep {
+    
+// 1 - SEQUENZE CLASSICHE
+// 2 - TROTTO
 
-    //static final int N_SEQUENZE = 150;
-    static int bank = 0;
+    static int INDICE = 2;
+    static double bank = 0;
     static int stepTotali = 0;
-    final static double QUOTA = 1.6;
+    final static double QUOTA = 1.50;
+    final static double OFFSET = 0;
     final static int VINCITA_PER_STEP = 50;
     final static int N_STEP = 2;
     final static LocalDate DATA_INIZIO = LocalDate.of(2018, 1, 1);
     final static LocalDate DATA_FINE = LocalDate.of(2019, 1, 1);
-
+    final static DecimalFormat DF = new DecimalFormat("####0.00");
+    
     static {
-        System.out.println("Probabilità fallimento sequenza = " + Math.pow((1 - (1 / QUOTA)), (double) N_STEP));
+        
+        System.out.println("Probabilità fallimento sequenza = " + DF.format(Math.pow((1 - (1 / QUOTA)), (double) N_STEP)));
     }
 
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-
+        
+        
         SimulazioneStep sim = new SimulazioneStep();
         int fails = 0;
 
         int i = 1;
-        int maxBank = 0, minBank = 0;
+        double maxBank = 0, minBank = 0;
         LocalDate maxBankDate = LocalDate.now();
         LocalDate minBankDate = LocalDate.now();
 
+     try {
         for (LocalDate currentDate = DATA_INIZIO; !(currentDate.isAfter(DATA_FINE)); i++) {
             System.out.println("Sequenza n. " + i + " del " + currentDate);
-            System.out.println("Cassa corrente = " + bank);
+            System.out.println("Cassa corrente = " + bank + " u");
 
             if (bank > maxBank) {
                 maxBankDate = currentDate;
@@ -53,28 +62,43 @@ public class SimulazioneStep {
                     minBank = bank;
                 }
             }
+            Sequenza seq = null;
 
-            Sequenza seq = sim.generaSequenza(QUOTA, VINCITA_PER_STEP, N_STEP, currentDate);
-
-            if (seq.getIsLost()) {
-                System.out.println(seq.getStep() + "° step perso. Sequenza fallita.");
-                fails++;
+            switch (INDICE) {
+                case 1:
+                    seq = sim.generaSequenza(QUOTA, VINCITA_PER_STEP, N_STEP, currentDate);
+                    break;
+                case 2:
+                    seq = sim.generaSequenzaTrotto(QUOTA, currentDate);
+                    break;
             }
-            bank += seq.getVincita();
-            stepTotali += seq.getStep();
 
-            currentDate = currentDate.plusDays(seq.getStep());
-            System.out.println("Cazzo = " + currentDate);
-            System.out.println("Esposizione nella sequenza = " + seq.getEsposizione());
+           
 
-        }
+                if (seq.getIsLost()) {
+                    System.out.println(seq.getStep() + "° step perso. Sequenza fallita.");
+                    fails++;
+                }
+                bank += seq.getVincita();
+                stepTotali += seq.getStep();
 
-        System.out.println("Registrate " + fails + " sequenze fallite");
-        System.out.println("Cassa max = " + maxBank + " rilevata il " + maxBankDate);
-        System.out.println("Cassa min = " + minBank + " rilevata il " + minBankDate);
-        System.out.println("Cassa finale = " + bank);
-        System.out.println("Eventi totali = " + stepTotali);
-        System.out.println("Vincita media giornaliera = " + bank/stepTotali);
+                currentDate = currentDate.plusDays(seq.getStep());
+                System.out.println("Data corrente = " + currentDate);
+                System.out.println("Esposizione nella sequenza = " + seq.getEsposizione());
+
+                System.out.println("Registrate " + fails + " sequenze fallite");
+                System.out.println("Cassa max = " + maxBank + " rilevata il " + maxBankDate);
+                System.out.println("Cassa min = " + minBank + " rilevata il " + minBankDate);
+                System.out.println("Cassa finale = " + bank);
+                System.out.println("Eventi totali = " + stepTotali);
+                System.out.println("Vincita media giornaliera = " + DF.format(bank / stepTotali) + " u");
+
+            } 
+        } catch (NullPointerException e) {
+
+                System.out.println("Indice errato. Scegliere 1 o 2.");
+            }
+
     }
 
     public static boolean getRandomBoolean(double p) { //generatore di infelicità
@@ -127,7 +151,7 @@ public class SimulazioneStep {
 
             System.out.println("Gioco " + i + "° step, punto " + seq.getPuntata() + " per vincere " + vincitaPerStep + " a quota " + quota);
 
-            if (getRandomBoolean(1 / (quota))) {
+            if (getRandomBoolean(1 / (QUOTA - OFFSET))) {
                 seq.setVincita(vincitaPerStep * i);
                 System.out.println("Vinto");
                 seq.setLost(false);
@@ -155,63 +179,64 @@ public class SimulazioneStep {
         return seq;
     }
 
-}
+    public Sequenza generaSequenzaTrotto(double quota, LocalDate currentDate) {
 
-class Sequenza {
+        Sequenza seq = new Sequenza();
+        int puntatePrecedenti;
+        int puntata;
+        int esposizione;
+        double vincita = 0;
 
-    private int puntatePrecedenti;
-    private int puntata;
-    private int vincita;
-    private int step;
-    private int esposizione;
+        for (int i = 0; i < 5; i++) {
 
-    public int getEsposizione() {
-        return esposizione;
+            seq.setStep(i + 1);
+            int[] puntateArr = {2, 6, 16, 45, 65};
+            //puntata = (int) Math.round((vincitaPerStep * i + seq.getPuntatePrecedenti()) / (quota - 1));
+
+            seq.setPuntata(puntateArr[i]);
+
+            //seq.setEsposizione(seq.getPuntata() + seq.getPuntatePrecedenti());
+            System.out.println("Gioco " + (i + 1) + "° step, punto " + seq.getPuntata() + " u a quota " + quota);
+
+            if (getRandomBoolean(1 / (QUOTA - OFFSET))) {
+                vincita = calcolaVincita(puntateArr, i);
+                seq.setVincita(vincita);
+                System.out.println("Vinto");
+                seq.setLost(false);
+                break;
+            } else {
+                currentDate = currentDate.plusDays(1);
+                System.out.println("Perso");
+                vincita -= seq.getPuntata();
+                puntatePrecedenti = seq.getPuntatePrecedenti() + puntateArr[i];
+                seq.setPuntatePrecedenti(puntatePrecedenti);
+                seq.setVincita(vincita);
+
+                if (currentDate.isAfter(DATA_FINE)) {
+                    seq.setLost(true);
+                    break;
+                }
+            }
+            seq.setLost(true);
+        }
+
+        return seq;
     }
 
-    public void setEsposizione(int esposizione) {
-        this.esposizione = esposizione;
-    }
-    private boolean isLost;
+    public double calcolaVincita(int[] puntateArr, int i) {
 
-    public int getPuntatePrecedenti() {
-        return puntatePrecedenti;
-    }
+        int sommaPuntate = 0;
+        double vincita;
+        int j = i;
+        while (j > -1) {
+            sommaPuntate += puntateArr[j];
+            j--;
+        }
 
-    public void setPuntatePrecedenti(int puntatePrecedenti) {
-        this.puntatePrecedenti = puntatePrecedenti;
-    }
+        vincita = puntateArr[i] * QUOTA - sommaPuntate;
 
-    public int getPuntata() {
-        return puntata;
-    }
-
-    public void setPuntata(int puntata) {
-        this.puntata = puntata;
-    }
-
-    public int getVincita() {
         return vincita;
-    }
 
-    public void setVincita(int vincita) {
-        this.vincita = vincita;
-    }
-
-    public int getStep() {
-        return step;
-    }
-
-    public void setStep(int step) {
-        this.step = step;
-    }
-
-    public boolean getIsLost() {
-        return isLost;
-    }
-
-    public void setLost(boolean isLost) {
-        this.isLost = isLost;
     }
 
 }
